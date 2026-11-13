@@ -24,7 +24,6 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# TAMAÑO DE DESCARGA
 ANCHO_FINAL = 1920
 ALTO_FINAL = 1080
 
@@ -40,8 +39,8 @@ st.markdown("""
 :root {
     --purple: #7952c7;
     --purple-dark: #6240ad;
-    --ink: #211a2b;
-    --muted: #766d80;
+    --ink: #17131f;
+    --muted: #494052;
     --line: #e9e2f1;
 }
 
@@ -56,8 +55,9 @@ st.markdown("""
     padding: 2.2rem 2rem 4rem;
 }
 
-h1, h2, h3 {
-    color: var(--ink) !important;
+/* TEXTOS PRINCIPALES */
+h1, h2, h3, h4 {
+    color: #17131f !important;
     font-family: 'Manrope', sans-serif !important;
     letter-spacing: -0.035em;
     font-weight: 800 !important;
@@ -66,14 +66,28 @@ h1, h2, h3 {
 h1 { font-size: 2.7rem !important; }
 h2 { font-size: 1.7rem !important; }
 
-p, label, li, .stMarkdown {
-    color: var(--muted);
+/* MEJORAR CONTRASTE GENERAL */
+.stApp p,
+.stApp label,
+.stApp li,
+.stApp [data-testid="stMarkdownContainer"],
+.stApp [data-testid="stWidgetLabel"],
+.stApp [data-testid="stExpander"] summary,
+.stApp [data-testid="stCaptionContainer"] {
+    color: #30283a !important;
 }
 
-[data-testid="stCaptionContainer"] {
-    color: #91869c;
+.stApp [data-testid="stCaptionContainer"] {
+    color: #51485d !important;
 }
 
+.stApp input,
+.stApp textarea,
+.stApp [data-baseweb="select"] * {
+    color: #211a2b !important;
+}
+
+/* MARCA */
 .orbix-brand {
     display: flex;
     align-items: center;
@@ -87,7 +101,7 @@ p, label, li, .stMarkdown {
     border-radius: 15px;
     display: grid;
     place-items: center;
-    color: white;
+    color: white !important;
     font-size: 24px;
     font-weight: 800;
     background: linear-gradient(145deg, #a78bfa, #7046bf);
@@ -95,7 +109,7 @@ p, label, li, .stMarkdown {
 }
 
 .orbix-kicker {
-    color: #8b72b2;
+    color: #7046bf !important;
     font-size: .72rem;
     font-weight: 800;
     letter-spacing: .16em;
@@ -103,13 +117,13 @@ p, label, li, .stMarkdown {
 }
 
 .orbix-subtitle {
-    color: #81778b;
+    color: #51485d !important;
     font-size: 1rem;
     margin-top: 5px;
 }
 
 .step-label {
-    color: #8066a8;
+    color: #5c3b89 !important;
     font-size: .75rem;
     font-weight: 800;
     letter-spacing: .12em;
@@ -131,10 +145,11 @@ p, label, li, .stMarkdown {
     border: 1px solid #e9def8;
     border-radius: 14px;
     padding: 13px 16px;
-    color: #65527f;
+    color: #49365f !important;
     font-size: .92rem;
 }
 
+/* BOTONES */
 .stButton > button,
 .stDownloadButton > button {
     background: var(--purple);
@@ -149,11 +164,13 @@ p, label, li, .stMarkdown {
 .stButton > button:hover,
 .stDownloadButton > button:hover {
     background: var(--purple-dark);
+    color: white !important;
     border-color: var(--purple-dark);
     box-shadow: 0 6px 18px rgba(121,82,199,.18);
     transform: translateY(-1px);
 }
 
+/* ARCHIVOS */
 [data-testid="stFileUploader"] {
     background: #ffffff;
     border: 1.5px dashed #cbbbe3;
@@ -165,6 +182,11 @@ p, label, li, .stMarkdown {
     background: transparent;
 }
 
+[data-testid="stFileUploader"] * {
+    color: #30283a !important;
+}
+
+/* EXPANSORES */
 div[data-testid="stExpander"] {
     background: white;
     border: 1px solid var(--line);
@@ -172,6 +194,7 @@ div[data-testid="stExpander"] {
     overflow: hidden;
 }
 
+/* MÉTRICAS */
 div[data-testid="stMetric"] {
     background: #f5f0fc;
     border: 1px solid #ece4f6;
@@ -180,7 +203,7 @@ div[data-testid="stMetric"] {
 }
 
 div[data-testid="stMetric"] label {
-    color: #796b89 !important;
+    color: #493d59 !important;
 }
 
 div[data-testid="stMetric"] [data-testid="stMetricValue"] {
@@ -188,6 +211,7 @@ div[data-testid="stMetric"] [data-testid="stMetricValue"] {
     font-weight: 800;
 }
 
+/* BARRA DE PROGRESO */
 div[data-testid="stProgressBar"] > div > div {
     background: linear-gradient(90deg, #a78bfa, #7650c6);
     border-radius: 99px;
@@ -233,7 +257,8 @@ def iniciar_estado():
         "archivo_nombre": None,
         "imagenes": [],
         "extraccion_realizada": False,
-        "titulos_confirmados": False
+        "titulos_confirmados": False,
+        "zip_bytes": None
     }
 
     for clave, valor in valores.items():
@@ -243,14 +268,17 @@ def iniciar_estado():
 
 def reiniciar():
 
-    for clave, valor in {
+    valores = {
         "paso": 1,
         "archivo_bytes": None,
         "archivo_nombre": None,
         "imagenes": [],
         "extraccion_realizada": False,
-        "titulos_confirmados": False
-    }.items():
+        "titulos_confirmados": False,
+        "zip_bytes": None
+    }
+
+    for clave, valor in valores.items():
         st.session_state[clave] = valor
 
     for key in list(st.session_state.keys()):
@@ -325,31 +353,25 @@ def convertir_full_hd(datos):
 
     imagen = Image.open(io.BytesIO(datos))
 
-    # Corregir orientación de fotografías
     imagen = ImageOps.exif_transpose(imagen)
 
-    # En GIF u otros formatos animados se utiliza el primer fotograma
     if getattr(imagen, "is_animated", False):
         imagen.seek(0)
 
-    # Convertir a RGBA para conservar transparencias
     imagen = imagen.convert("RGBA")
 
-    # Ajustar al tamaño Full HD sin deformar
     imagen_ajustada = ImageOps.contain(
         imagen,
         (ANCHO_FINAL, ALTO_FINAL),
         method=Image.Resampling.LANCZOS
     )
 
-    # Crear lienzo transparente Full HD
     lienzo = Image.new(
         "RGBA",
         (ANCHO_FINAL, ALTO_FINAL),
         (255, 255, 255, 0)
     )
 
-    # Centrar la imagen
     posicion_x = (ANCHO_FINAL - imagen_ajustada.width) // 2
     posicion_y = (ALTO_FINAL - imagen_ajustada.height) // 2
 
@@ -358,13 +380,14 @@ def convertir_full_hd(datos):
         (posicion_x, posicion_y)
     )
 
-    # Guardar como PNG para conservar transparencia
     salida = io.BytesIO()
 
+    # Compresión rápida para evitar esperas innecesarias
     lienzo.save(
         salida,
         format="PNG",
-        optimize=True
+        optimize=False,
+        compress_level=1
     )
 
     return salida.getvalue()
@@ -620,22 +643,22 @@ def crear_zip(imagenes):
 
     memoria = io.BytesIO()
 
+    # PNG ya contiene compresión interna.
+    # ZIP_STORED evita comprimirlo otra vez.
     with zipfile.ZipFile(
         memoria,
         "w",
-        zipfile.ZIP_DEFLATED
+        compression=zipfile.ZIP_STORED
     ) as archivo_zip:
 
         for indice, imagen in enumerate(imagenes, start=1):
 
             titulo = nombre_seguro(imagen["titulo"])
 
-            # Convertir cada imagen a 1920 x 1080
             datos_full_hd = convertir_full_hd(
                 imagen["datos"]
             )
 
-            # Todas las imágenes descargadas serán PNG
             nombre = f"{indice:02d} {titulo}.png"
 
             archivo_zip.writestr(
@@ -643,9 +666,7 @@ def crear_zip(imagenes):
                 datos_full_hd
             )
 
-    memoria.seek(0)
-
-    return memoria
+    return memoria.getvalue()
 
 
 # =========================================================
@@ -702,7 +723,7 @@ for i, nombre in enumerate(nombres_pasos, start=1):
 
         elif i < paso:
             st.markdown(
-                f'<div class="step-label" style="color:#5b9b7c">'
+                f'<div class="step-label" style="color:#397b5b">'
                 f'✓ {i:02d} · {nombre}</div>',
                 unsafe_allow_html=True
             )
@@ -770,6 +791,7 @@ if paso == 1:
             st.session_state.imagenes = []
             st.session_state.extraccion_realizada = False
             st.session_state.titulos_confirmados = False
+            st.session_state.zip_bytes = None
 
             avanzar(2)
 
@@ -864,6 +886,7 @@ elif paso == 2:
 
                     st.session_state.imagenes = imagenes
                     st.session_state.extraccion_realizada = True
+                    st.session_state.zip_bytes = None
 
                 st.rerun()
 
@@ -938,6 +961,7 @@ elif paso == 2:
 
             st.session_state.extraccion_realizada = False
             st.session_state.imagenes = []
+            st.session_state.zip_bytes = None
 
             st.rerun()
 
@@ -1015,6 +1039,7 @@ elif paso == 3:
     ):
 
         st.session_state.titulos_confirmados = True
+        st.session_state.zip_bytes = None
         avanzar(4)
 
     if st.button(
@@ -1022,6 +1047,7 @@ elif paso == 3:
         use_container_width=True
     ):
 
+        st.session_state.zip_bytes = None
         avanzar(2)
 
 
@@ -1047,6 +1073,14 @@ elif paso == 4:
         if st.button("Volver a organizar"):
             avanzar(3)
 
+    elif not imagenes:
+
+        st.warning("No hay imágenes para descargar.")
+
+        if st.button("Iniciar una nueva extracción"):
+            reiniciar()
+            st.rerun()
+
     else:
 
         st.markdown(
@@ -1068,26 +1102,52 @@ elif paso == 4:
             "Resolución de descarga: 1920 × 1080 píxeles"
         )
 
-        try:
+        st.write("")
 
-            with st.spinner("Preparando imágenes Full HD..."):
+        # SOLO GENERAR CUANDO EL USUARIO LO SOLICITE
+        if st.session_state.zip_bytes is None:
 
-                archivo_zip = crear_zip(imagenes)
+            st.info(
+                "Pulsa el botón para preparar el archivo. "
+                "Esto puede tardar dependiendo del número y tamaño "
+                "de las imágenes."
+            )
 
-            st.success("Todas las imágenes están preparadas.")
+            if st.button(
+                "✦ Preparar descarga Full HD",
+                use_container_width=True
+            ):
+
+                try:
+
+                    with st.spinner(
+                        "Preparando tus imágenes Full HD..."
+                    ):
+
+                        st.session_state.zip_bytes = crear_zip(
+                            imagenes
+                        )
+
+                    st.rerun()
+
+                except Exception as error:
+
+                    st.error(
+                        f"No se pudo preparar el ZIP: {error}"
+                    )
+
+        else:
+
+            st.success(
+                "Todas las imágenes están preparadas."
+            )
 
             st.download_button(
                 "↓ Descargar imágenes Full HD (.ZIP)",
-                data=archivo_zip,
+                data=st.session_state.zip_bytes,
                 file_name="ORBIX_Imagenes_Full_HD.zip",
                 mime="application/zip",
                 use_container_width=True
-            )
-
-        except Exception as error:
-
-            st.error(
-                f"No se pudo preparar el ZIP: {error}"
             )
 
         if imagenes:
@@ -1129,4 +1189,3 @@ elif paso == 4:
 st.divider()
 
 st.caption("ORBIX · Image Extractor · Full HD 1920 × 1080")
-    
