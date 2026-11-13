@@ -9,7 +9,7 @@ import hashlib
 import zipfile
 import html
 
-from PIL import Image
+from PIL import Image, ImageOps
 from bs4 import BeautifulSoup
 
 
@@ -24,95 +24,198 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# TAMAÑO DE DESCARGA
+ANCHO_FINAL = 1920
+ALTO_FINAL = 1080
+
 
 # =========================================================
-# ESTILOS: SIN BLOQUES HTML DE INTERFAZ
+# DISEÑO VISUAL ORBIX
 # =========================================================
 
 st.markdown("""
 <style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&display=swap');
+
+:root {
+    --purple: #7952c7;
+    --purple-dark: #6240ad;
+    --ink: #211a2b;
+    --muted: #766d80;
+    --line: #e9e2f1;
+}
+
 .stApp {
-    background:
-        radial-gradient(circle at 10% 0%, #302044 0%, transparent 35%),
-        radial-gradient(circle at 90% 10%, #24183a 0%, transparent 35%),
-        #0b0912;
-    color: #ffffff;
+    background: #faf9fc;
+    color: var(--ink);
+    font-family: 'DM Sans', sans-serif;
 }
 
 .block-container {
-    max-width: 1150px;
-    padding-top: 2rem;
-    padding-bottom: 3rem;
+    max-width: 1080px;
+    padding: 2.2rem 2rem 4rem;
 }
 
 h1, h2, h3 {
-    color: #efd4ff !important;
-    font-weight: 850 !important;
-    text-shadow: 0 0 14px rgba(194, 120, 255, .3);
+    color: var(--ink) !important;
+    font-family: 'Manrope', sans-serif !important;
+    letter-spacing: -0.035em;
+    font-weight: 800 !important;
 }
 
-p, label, span, li, .stMarkdown {
-    color: #f2eaff !important;
+h1 { font-size: 2.7rem !important; }
+h2 { font-size: 1.7rem !important; }
+
+p, label, li, .stMarkdown {
+    color: var(--muted);
 }
 
-.stCaption, [data-testid="stCaptionContainer"] {
-    color: #cbb8e2 !important;
+[data-testid="stCaptionContainer"] {
+    color: #91869c;
 }
 
-.stButton > button {
-    background: linear-gradient(100deg, #9333ea, #c05cff);
+.orbix-brand {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    margin-bottom: 5px;
+}
+
+.orbix-mark {
+    width: 46px;
+    height: 46px;
+    border-radius: 15px;
+    display: grid;
+    place-items: center;
+    color: white;
+    font-size: 24px;
+    font-weight: 800;
+    background: linear-gradient(145deg, #a78bfa, #7046bf);
+    box-shadow: 0 8px 22px rgba(121,82,199,.16);
+}
+
+.orbix-kicker {
+    color: #8b72b2;
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+}
+
+.orbix-subtitle {
+    color: #81778b;
+    font-size: 1rem;
+    margin-top: 5px;
+}
+
+.step-label {
+    color: #8066a8;
+    font-size: .75rem;
+    font-weight: 800;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    margin-bottom: 7px;
+}
+
+.surface {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 22px 24px;
+    box-shadow: 0 8px 28px rgba(45, 28, 67, .035);
+    margin: 12px 0 18px;
+}
+
+.soft-note {
+    background: #f5f0fc;
+    border: 1px solid #e9def8;
+    border-radius: 14px;
+    padding: 13px 16px;
+    color: #65527f;
+    font-size: .92rem;
+}
+
+.stButton > button,
+.stDownloadButton > button {
+    background: var(--purple);
     color: white !important;
-    border: 1px solid #d5a4ff;
+    border: 1px solid var(--purple);
     border-radius: 12px;
     min-height: 46px;
-    font-weight: 800;
-    transition: .2s;
+    font-weight: 700;
+    transition: all .2s ease;
 }
 
-.stButton > button:hover {
-    background: linear-gradient(100deg, #a855f7, #df75ff);
-    box-shadow: 0 0 20px rgba(198, 120, 255, .4);
-    transform: translateY(-2px);
-}
-
-.stDownloadButton > button {
-    background: #7c3aed;
-    color: white !important;
-    border: 1px solid #d5a4ff;
-    border-radius: 12px;
-    min-height: 48px;
-    font-weight: 800;
+.stButton > button:hover,
+.stDownloadButton > button:hover {
+    background: var(--purple-dark);
+    border-color: var(--purple-dark);
+    box-shadow: 0 6px 18px rgba(121,82,199,.18);
+    transform: translateY(-1px);
 }
 
 [data-testid="stFileUploader"] {
-    background: #191322;
-    border: 1px dashed #b77ce7;
-    border-radius: 15px;
-    padding: 15px;
+    background: #ffffff;
+    border: 1.5px dashed #cbbbe3;
+    border-radius: 16px;
+    padding: 16px;
 }
 
-[data-testid="stFileUploader"] * {
-    color: #ffffff !important;
+[data-testid="stFileUploader"] section {
+    background: transparent;
 }
 
-input, textarea {
-    background: #21182e !important;
-    color: white !important;
-    border: 1px solid #8053a7 !important;
+div[data-testid="stExpander"] {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
 }
 
-.stTextInput label {
-    color: #f0d9ff !important;
-    font-weight: 700 !important;
+div[data-testid="stMetric"] {
+    background: #f5f0fc;
+    border: 1px solid #ece4f6;
+    padding: 14px;
+    border-radius: 14px;
 }
 
-hr {
-    border-color: #563a70;
+div[data-testid="stMetric"] label {
+    color: #796b89 !important;
+}
+
+div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+    color: #563b86 !important;
+    font-weight: 800;
+}
+
+div[data-testid="stProgressBar"] > div > div {
+    background: linear-gradient(90deg, #a78bfa, #7650c6);
+    border-radius: 99px;
+}
+
+div[data-testid="stProgressBar"] {
+    background: #eee8f5;
+    border-radius: 99px;
+}
+
+div[data-testid="stAlert"] {
+    border-radius: 12px;
 }
 
 div[data-testid="stImage"] img {
     border-radius: 12px;
-    border: 1px solid #704c91;
+}
+
+input, textarea {
+    border-radius: 10px !important;
+}
+
+hr {
+    border-color: var(--line);
+}
+
+#MainMenu, footer {
+    visibility: hidden;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -138,21 +241,29 @@ def iniciar_estado():
             st.session_state[clave] = valor
 
 
-iniciar_estado()
-
-
 def reiniciar():
-    st.session_state.paso = 1
-    st.session_state.archivo_bytes = None
-    st.session_state.archivo_nombre = None
-    st.session_state.imagenes = []
-    st.session_state.extraccion_realizada = False
-    st.session_state.titulos_confirmados = False
+
+    for clave, valor in {
+        "paso": 1,
+        "archivo_bytes": None,
+        "archivo_nombre": None,
+        "imagenes": [],
+        "extraccion_realizada": False,
+        "titulos_confirmados": False
+    }.items():
+        st.session_state[clave] = valor
+
+    for key in list(st.session_state.keys()):
+        if key.startswith("titulo_imagen_"):
+            del st.session_state[key]
 
 
 def avanzar(paso):
     st.session_state.paso = paso
     st.rerun()
+
+
+iniciar_estado()
 
 
 # =========================================================
@@ -172,7 +283,6 @@ def limpiar_titulo(texto, limite=90):
 def nombre_seguro(texto):
 
     texto = limpiar_titulo(texto)
-
     texto = re.sub(r'[\\/:*?"<>|]', "", texto)
     texto = re.sub(r"\s+", " ", texto)
 
@@ -205,6 +315,59 @@ def dimensiones(datos):
         return imagen.size
     except Exception:
         return None
+
+
+# =========================================================
+# CONVERSIÓN A FULL HD 1920 x 1080
+# =========================================================
+
+def convertir_full_hd(datos):
+
+    imagen = Image.open(io.BytesIO(datos))
+
+    # Corregir orientación de fotografías
+    imagen = ImageOps.exif_transpose(imagen)
+
+    # En GIF u otros formatos animados se utiliza el primer fotograma
+    if getattr(imagen, "is_animated", False):
+        imagen.seek(0)
+
+    # Convertir a RGBA para conservar transparencias
+    imagen = imagen.convert("RGBA")
+
+    # Ajustar al tamaño Full HD sin deformar
+    imagen_ajustada = ImageOps.contain(
+        imagen,
+        (ANCHO_FINAL, ALTO_FINAL),
+        method=Image.Resampling.LANCZOS
+    )
+
+    # Crear lienzo transparente Full HD
+    lienzo = Image.new(
+        "RGBA",
+        (ANCHO_FINAL, ALTO_FINAL),
+        (255, 255, 255, 0)
+    )
+
+    # Centrar la imagen
+    posicion_x = (ANCHO_FINAL - imagen_ajustada.width) // 2
+    posicion_y = (ALTO_FINAL - imagen_ajustada.height) // 2
+
+    lienzo.alpha_composite(
+        imagen_ajustada,
+        (posicion_x, posicion_y)
+    )
+
+    # Guardar como PNG para conservar transparencia
+    salida = io.BytesIO()
+
+    lienzo.save(
+        salida,
+        format="PNG",
+        optimize=True
+    )
+
+    return salida.getvalue()
 
 
 # =========================================================
@@ -275,77 +438,80 @@ def extraer_pdf(datos_pdf, ancho_minimo, alto_minimo):
     resultados = []
     hashes = set()
 
-    for indice, pagina in enumerate(documento):
+    try:
 
-        numero_pagina = indice + 1
+        for indice, pagina in enumerate(documento):
 
-        try:
-            elementos = pagina.get_image_info(xrefs=True)
-        except Exception:
-            elementos = []
-
-        contador_pagina = 0
-        ubicaciones_vistas = set()
-
-        for elemento in elementos:
-
-            xref = elemento.get("xref", 0)
-            ancho = elemento.get("width", 0)
-            alto = elemento.get("height", 0)
-            bbox = elemento.get("bbox", (0, 0, 0, 0))
-
-            if ancho < ancho_minimo or alto < alto_minimo:
-                continue
-
-            ubicacion = (xref, tuple(bbox))
-
-            if ubicacion in ubicaciones_vistas:
-                continue
-
-            ubicaciones_vistas.add(ubicacion)
-
-            if xref <= 0:
-                continue
+            numero_pagina = indice + 1
 
             try:
-                extraida = documento.extract_image(xref)
-                datos = extraida["image"]
-                extension = obtener_extension(
-                    extraida.get("ext", "png")
-                )
+                elementos = pagina.get_image_info(xrefs=True)
             except Exception:
-                continue
+                elementos = []
 
-            tamano = dimensiones(datos)
+            contador_pagina = 0
+            ubicaciones_vistas = set()
 
-            if not tamano:
-                continue
+            for elemento in elementos:
 
-            huella = obtener_hash(datos)
+                xref = elemento.get("xref", 0)
+                ancho = elemento.get("width", 0)
+                alto = elemento.get("height", 0)
+                bbox = elemento.get("bbox", (0, 0, 0, 0))
 
-            if huella in hashes:
-                continue
+                if ancho < ancho_minimo or alto < alto_minimo:
+                    continue
 
-            hashes.add(huella)
-            contador_pagina += 1
+                ubicacion = (xref, tuple(bbox))
 
-            titulo = titulo_pdf(
-                pagina,
-                bbox,
-                numero_pagina,
-                contador_pagina
-            )
+                if ubicacion in ubicaciones_vistas:
+                    continue
 
-            resultados.append({
-                "datos": datos,
-                "extension": extension,
-                "titulo": titulo,
-                "pagina": numero_pagina,
-                "ancho": tamano[0],
-                "alto": tamano[1]
-            })
+                ubicaciones_vistas.add(ubicacion)
 
-    documento.close()
+                if xref <= 0:
+                    continue
+
+                try:
+                    extraida = documento.extract_image(xref)
+                    datos = extraida["image"]
+                    extension = obtener_extension(
+                        extraida.get("ext", "png")
+                    )
+                except Exception:
+                    continue
+
+                tamano = dimensiones(datos)
+
+                if not tamano:
+                    continue
+
+                huella = obtener_hash(datos)
+
+                if huella in hashes:
+                    continue
+
+                hashes.add(huella)
+                contador_pagina += 1
+
+                titulo = titulo_pdf(
+                    pagina,
+                    bbox,
+                    numero_pagina,
+                    contador_pagina
+                )
+
+                resultados.append({
+                    "datos": datos,
+                    "extension": extension,
+                    "titulo": titulo,
+                    "pagina": numero_pagina,
+                    "ancho": tamano[0],
+                    "alto": tamano[1]
+                })
+
+    finally:
+        documento.close()
 
     return resultados
 
@@ -377,6 +543,7 @@ def extraer_html(datos_html):
             continue
 
         try:
+
             encabezado, contenido_base64 = src.split(",", 1)
 
             datos = base64.b64decode(contenido_base64)
@@ -446,7 +613,7 @@ def extraer_html(datos_html):
 
 
 # =========================================================
-# GENERAR ARCHIVO ZIP
+# GENERAR ZIP EN FULL HD
 # =========================================================
 
 def crear_zip(imagenes):
@@ -462,13 +629,18 @@ def crear_zip(imagenes):
         for indice, imagen in enumerate(imagenes, start=1):
 
             titulo = nombre_seguro(imagen["titulo"])
-            extension = imagen["extension"]
 
-            nombre = f"{indice:02d} {titulo}.{extension}"
+            # Convertir cada imagen a 1920 x 1080
+            datos_full_hd = convertir_full_hd(
+                imagen["datos"]
+            )
+
+            # Todas las imágenes descargadas serán PNG
+            nombre = f"{indice:02d} {titulo}.png"
 
             archivo_zip.writestr(
                 nombre,
-                imagen["datos"]
+                datos_full_hd
             )
 
     memoria.seek(0)
@@ -480,15 +652,23 @@ def crear_zip(imagenes):
 # CABECERA
 # =========================================================
 
-st.title("✦ ORBIX")
-st.subheader("Scribe Image Extractor")
-
-st.write(
-    "Extrae y organiza tus imágenes originales. "
-    "Sin filtros, sin retoques y sin redimensionarlas."
-)
-
-st.divider()
+st.markdown("""
+<div class="orbix-brand">
+    <div class="orbix-mark">✦</div>
+    <div>
+        <div class="orbix-kicker">IMAGE EXTRACTOR</div>
+        <div style="font-family:Manrope,sans-serif;
+                    font-size:1.65rem;
+                    font-weight:800;
+                    color:#211a2b;">
+            ORBIX
+        </div>
+    </div>
+</div>
+<div class="orbix-subtitle">
+    Extrae. Organiza. Descarga.
+</div>
+""", unsafe_allow_html=True)
 
 
 # =========================================================
@@ -504,11 +684,35 @@ nombres_pasos = [
     "Descargar"
 ]
 
+st.write("")
 st.progress(paso / 4)
 
-st.caption(
-    f"ETAPA {paso} DE 4  ·  {nombres_pasos[paso - 1]}"
-)
+columnas = st.columns(4)
+
+for i, nombre in enumerate(nombres_pasos, start=1):
+
+    with columnas[i - 1]:
+
+        if i == paso:
+            st.markdown(
+                f'<div class="step-label" style="color:#7046bf">'
+                f'● {i:02d} · {nombre}</div>',
+                unsafe_allow_html=True
+            )
+
+        elif i < paso:
+            st.markdown(
+                f'<div class="step-label" style="color:#5b9b7c">'
+                f'✓ {i:02d} · {nombre}</div>',
+                unsafe_allow_html=True
+            )
+
+        else:
+            st.markdown(
+                f'<div class="step-label">'
+                f'○ {i:02d} · {nombre}</div>',
+                unsafe_allow_html=True
+            )
 
 st.divider()
 
@@ -519,14 +723,21 @@ st.divider()
 
 if paso == 1:
 
-    st.header("01 · Cargar documento")
-
-    st.write(
-        "Selecciona el documento de Scribe que deseas procesar."
+    st.markdown(
+        '<div class="step-label">PASO 01</div>',
+        unsafe_allow_html=True
     )
 
+    st.header("Carga tu documento")
+
+    st.write(
+        "Selecciona un archivo PDF o HTML para comenzar."
+    )
+
+    st.markdown('<div class="surface">', unsafe_allow_html=True)
+
     archivo = st.file_uploader(
-        "Seleccionar archivo",
+        "Arrastra tu archivo aquí o selecciónalo desde tu equipo",
         type=["pdf", "html", "htm"],
         key="archivo_cargado"
     )
@@ -535,20 +746,22 @@ if paso == 1:
 
         extension = os.path.splitext(archivo.name)[1].lower()
 
-        st.success("Documento seleccionado correctamente.")
+        st.success("Documento listo para procesar")
 
-        st.write(f"**Archivo:** {archivo.name}")
-        st.write(
-            f"**Tamaño:** {archivo.size / 1024:.1f} KB"
+        c1, c2 = st.columns(2)
+
+        c1.metric(
+            "Formato",
+            extension.replace(".", "").upper()
         )
-        st.write(f"**Formato:** {extension.upper()}")
 
-        st.warning(
-            "Confirma este documento para continuar."
+        c2.metric(
+            "Tamaño",
+            f"{archivo.size / 1024:.1f} KB"
         )
 
         if st.button(
-            "CONFIRMAR DOCUMENTO →",
+            "Continuar con este documento →",
             use_container_width=True
         ):
 
@@ -556,11 +769,15 @@ if paso == 1:
             st.session_state.archivo_nombre = archivo.name
             st.session_state.imagenes = []
             st.session_state.extraccion_realizada = False
+            st.session_state.titulos_confirmados = False
 
             avanzar(2)
 
     else:
-        st.info("Primero debes seleccionar un archivo.")
+
+        st.caption("Formatos admitidos: PDF, HTML y HTM.")
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 # =========================================================
@@ -569,47 +786,63 @@ if paso == 1:
 
 elif paso == 2:
 
-    st.header("02 · Extraer imágenes")
-
-    st.write(
-        f"Documento seleccionado: **{st.session_state.archivo_nombre}**"
+    st.markdown(
+        '<div class="step-label">PASO 02</div>',
+        unsafe_allow_html=True
     )
 
+    st.header("Extrae las imágenes")
+
     st.write(
-        "ORBIX analizará el documento y buscará las imágenes "
-        "que se puedan extraer."
+        f"Documento: **{st.session_state.archivo_nombre}**"
     )
 
-    with st.expander("Configuración de extracción"):
+    with st.expander("Opciones de extracción"):
 
-        ancho_minimo = st.number_input(
-            "Ancho mínimo en píxeles",
-            min_value=1,
-            max_value=5000,
-            value=250,
-            step=25
-        )
+        c1, c2 = st.columns(2)
 
-        alto_minimo = st.number_input(
-            "Alto mínimo en píxeles",
-            min_value=1,
-            max_value=5000,
-            value=180,
-            step=25
+        with c1:
+            ancho_minimo = st.number_input(
+                "Ancho mínimo (px)",
+                min_value=1,
+                max_value=5000,
+                value=250,
+                step=25
+            )
+
+        with c2:
+            alto_minimo = st.number_input(
+                "Alto mínimo (px)",
+                min_value=1,
+                max_value=5000,
+                value=180,
+                step=25
+            )
+
+        st.caption(
+            "Aumenta estos valores para ignorar imágenes pequeñas."
         )
 
     if not st.session_state.extraccion_realizada:
 
+        st.markdown(
+            '<div class="soft-note">'
+            'ORBIX analizará el archivo y conservará los datos '
+            'originales de las imágenes.'
+            '</div>',
+            unsafe_allow_html=True
+        )
+
+        st.write("")
+
         if st.button(
-            "✦ INICIAR EXTRACCIÓN",
+            "✦ Iniciar extracción",
             use_container_width=True
         ):
 
             try:
 
-                with st.spinner(
-                    "Analizando el documento..."
-                ):
+                with st.spinner("Analizando el documento..."):
 
                     extension = os.path.splitext(
                         st.session_state.archivo_nombre
@@ -635,65 +868,77 @@ elif paso == 2:
                 st.rerun()
 
             except Exception as error:
-                st.error(f"Error al extraer: {error}")
+
+                st.error(
+                    f"No se pudo completar la extracción: {error}"
+                )
 
     else:
 
         imagenes = st.session_state.imagenes
 
-        st.success(
-            f"Extracción terminada: {len(imagenes)} imágenes encontradas."
-        )
-
         if imagenes:
 
+            st.success("Extracción completada.")
+
             st.metric(
-                "Total de imágenes encontradas",
+                "Imágenes encontradas",
                 len(imagenes)
             )
 
-            st.write(
-                "Revisa el resultado antes de confirmar."
-            )
+            st.caption("Vista previa de los primeros resultados:")
 
-            for indice, imagen in enumerate(imagenes[:6]):
+            vista = st.columns(min(3, len(imagenes)))
 
-                st.write(
-                    f"{indice + 1}. {imagen['titulo']} "
-                    f"({imagen['ancho']} × {imagen['alto']} px)"
-                )
+            for indice, imagen in enumerate(imagenes[:3]):
 
-            if len(imagenes) > 6:
-                st.caption(
-                    f"Y {len(imagenes) - 6} imágenes adicionales."
-                )
+                with vista[indice]:
 
-            st.warning(
-                "La cantidad encontrada debe ser revisada antes "
-                "de continuar."
-            )
+                    st.image(
+                        imagen["datos"],
+                        use_container_width=True
+                    )
+
+                    st.caption(
+                        f"{indice + 1:02d} · {imagen['titulo'][:42]}"
+                    )
 
             if st.button(
-                "CONFIRMAR EXTRACCIÓN Y CONTINUAR →",
+                "Confirmar extracción y continuar →",
                 use_container_width=True
             ):
+
                 avanzar(3)
 
         else:
-            st.error(
+
+            st.warning(
                 "No se encontraron imágenes con los criterios actuales."
             )
 
-    col1, col2 = st.columns(2)
+            st.caption(
+                "Puedes reducir el ancho o alto mínimo e intentarlo de nuevo."
+            )
 
-    with col1:
-        if st.button("← Volver"):
+    st.write("")
+
+    atras, repetir = st.columns(2)
+
+    with atras:
+
+        if st.button("← Volver", use_container_width=True):
             avanzar(1)
 
-    with col2:
-        if st.button("Repetir extracción"):
+    with repetir:
+
+        if st.button(
+            "Reiniciar extracción",
+            use_container_width=True
+        ):
+
             st.session_state.extraccion_realizada = False
             st.session_state.imagenes = []
+
             st.rerun()
 
 
@@ -703,29 +948,37 @@ elif paso == 2:
 
 elif paso == 3:
 
-    st.header("03 · Organizar imágenes")
+    st.markdown(
+        '<div class="step-label">PASO 03</div>',
+        unsafe_allow_html=True
+    )
+
+    st.header("Organiza los títulos")
+
+    st.write(
+        "Revisa cada imagen y ajusta su nombre antes de descargarla."
+    )
+
+    st.markdown(
+        '<div class="soft-note">'
+        'Los títulos solo se usarán para nombrar los archivos. '
+        'No se modificarán ni se escribirán sobre las imágenes.'
+        '</div>',
+        unsafe_allow_html=True
+    )
 
     imagenes = st.session_state.imagenes
 
-    st.write(
-        "Revisa las imágenes y modifica sus títulos si lo necesitas."
-    )
-
-    st.info(
-        "Los títulos se utilizarán en los nombres de los archivos. "
-        "No se escribirán sobre las imágenes."
-    )
-
-    st.write(f"**Total para organizar: {len(imagenes)}**")
+    st.write(f"**{len(imagenes)} imágenes para revisar**")
 
     for indice, imagen in enumerate(imagenes):
 
         with st.expander(
-            f"Imagen {indice + 1:02d} · {imagen['titulo']}",
+            f"{indice + 1:02d} · {imagen['titulo']}",
             expanded=(indice == 0)
         ):
 
-            izquierda, derecha = st.columns([1, 1.3])
+            izquierda, derecha = st.columns([1, 1.25])
 
             with izquierda:
 
@@ -737,12 +990,12 @@ elif paso == 3:
             with derecha:
 
                 st.caption(
-                    f"Resolución original: "
+                    f"Página {imagen['pagina']} · "
                     f"{imagen['ancho']} × {imagen['alto']} px"
                 )
 
                 nuevo_titulo = st.text_input(
-                    "Título",
+                    "Nombre del archivo",
                     value=imagen["titulo"],
                     key=f"titulo_imagen_{indice}"
                 )
@@ -750,26 +1003,25 @@ elif paso == 3:
                 imagen["titulo"] = nuevo_titulo
 
                 st.caption(
-                    f"Nombre: {indice + 1:02d} "
-                    f"{nombre_seguro(nuevo_titulo)}."
-                    f"{imagen['extension']}"
+                    f"Se guardará como: {indice + 1:02d} "
+                    f"{nombre_seguro(nuevo_titulo)}.png"
                 )
 
-    st.divider()
-
-    st.warning(
-        "Al confirmar, los títulos quedarán listos para la descarga."
-    )
+    st.write("")
 
     if st.button(
-        "CONFIRMAR TÍTULOS Y CONTINUAR →",
+        "Confirmar títulos y continuar →",
         use_container_width=True
     ):
 
         st.session_state.titulos_confirmados = True
         avanzar(4)
 
-    if st.button("← Volver a extracción"):
+    if st.button(
+        "← Volver a extracción",
+        use_container_width=True
+    ):
+
         avanzar(2)
 
 
@@ -779,61 +1031,93 @@ elif paso == 3:
 
 elif paso == 4:
 
-    st.header("04 · Descargar imágenes")
+    st.markdown(
+        '<div class="step-label">PASO 04</div>',
+        unsafe_allow_html=True
+    )
+
+    st.header("Tu descarga está lista")
 
     imagenes = st.session_state.imagenes
 
     if not st.session_state.titulos_confirmados:
 
         st.warning("Primero debes confirmar los títulos.")
+
         if st.button("Volver a organizar"):
             avanzar(3)
 
     else:
 
-        st.success(
-            f"¡Todo listo! Tienes {len(imagenes)} imágenes organizadas."
+        st.markdown(
+            '<div class="soft-note">'
+            'Tus imágenes se exportarán en Full HD (1920 × 1080), '
+            'sin deformaciones y en formato PNG.'
+            '</div>',
+            unsafe_allow_html=True
         )
 
-        st.write(
-            "ORBIX ha preparado el archivo con las imágenes "
-            "y sus nombres correspondientes."
+        st.write("")
+
+        st.metric(
+            "Imágenes organizadas",
+            len(imagenes)
         )
 
-        archivo_zip = crear_zip(imagenes)
-
-        st.download_button(
-            "⬇ DESCARGAR TODAS LAS IMÁGENES",
-            data=archivo_zip,
-            file_name="ORBIX_Imagenes_Scribe.zip",
-            mime="application/zip",
-            use_container_width=True
+        st.caption(
+            "Resolución de descarga: 1920 × 1080 píxeles"
         )
 
-        st.divider()
+        try:
 
-        st.subheader("Resumen")
+            with st.spinner("Preparando imágenes Full HD..."):
 
-        st.metric("Imágenes listas", len(imagenes))
+                archivo_zip = crear_zip(imagenes)
+
+            st.success("Todas las imágenes están preparadas.")
+
+            st.download_button(
+                "↓ Descargar imágenes Full HD (.ZIP)",
+                data=archivo_zip,
+                file_name="ORBIX_Imagenes_Full_HD.zip",
+                mime="application/zip",
+                use_container_width=True
+            )
+
+        except Exception as error:
+
+            st.error(
+                f"No se pudo preparar el ZIP: {error}"
+            )
 
         if imagenes:
-            st.write(
-                f"Primera imagen: {nombre_seguro(imagenes[0]['titulo'])}"
-            )
-            st.write(
-                f"Última imagen: {nombre_seguro(imagenes[-1]['titulo'])}"
-            )
+
+            with st.expander("Ver resumen de archivos"):
+
+                for indice, imagen in enumerate(
+                    imagenes,
+                    start=1
+                ):
+
+                    st.write(
+                        f"{indice:02d}. "
+                        f"{nombre_seguro(imagen['titulo'])}.png"
+                    )
+
+        st.write("")
 
         if st.button(
             "← Volver a títulos",
             use_container_width=True
         ):
+
             avanzar(3)
 
         if st.button(
-            "INICIAR NUEVA EXTRACCIÓN",
+            "Iniciar una nueva extracción",
             use_container_width=True
         ):
+
             reiniciar()
             st.rerun()
 
@@ -844,6 +1128,5 @@ elif paso == 4:
 
 st.divider()
 
-st.caption(
-    "ORBIX STUDIO · Extracción y organización de imágenes"
-)
+st.caption("ORBIX · Image Extractor · Full HD 1920 × 1080")
+    
